@@ -1,0 +1,22 @@
+version: '2.1'
+
+services:
+  redis:
+    image: redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+  test:
+    build: .
+    links:
+      - redis
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command:
+      nosetests
+
+volumes:
+  redis_data:
