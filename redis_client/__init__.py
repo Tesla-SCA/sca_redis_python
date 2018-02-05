@@ -57,7 +57,7 @@ class RedisClient:
     # Generic Request Handler can be used to interface with generic web requests
     # This internally invokes RedisClient.fetch_data that has the workflow to cache
     # if needed.
-    # Cache key is the md5 result of context.arn + event params
+    # Cache key is the md5 result of function_name and payload
     # parameters:
     #   1. function_name = function requesting cache services
     #   2. payload = what needs to be looked up, body of lookup
@@ -123,6 +123,8 @@ class RedisClient:
                 return json.loads(redis_get_result)
             else:
                 # cache miss
+                print(str(_method_attrs))
+                print(str(query_method))
                 invoker_method_result = query_method(*_method_attrs[0:2]) if _method_attrs is not None else query_method()
                 _redis_client.set(key, json.dumps(invoker_method_result), int(_params.get(_self.__ttl_key)))
                 print(
@@ -134,39 +136,3 @@ class RedisClient:
             print("Redis connection error. Skipping cache layer and making network request" + str(e))
             return query_method(*_method_attrs[0:2]) if _method_attrs is not None else query_method()
 
-    # GENERIC Fetch data method to fetch data from Redis server. If the corresponding key doesn't exist (cache miss)
-    # then the cache is populated with the obtained result.
-    # Note: Passing params (ttl as dict) is optional. It can be used to override the default 60 sec TTL.
-    @staticmethod
-    def generic_fetch_data(key, query_method, params=None):
-        _self = RedisClient
-        _method_attrs = None
-        try:
-            if key is None or not isinstance(key, str):
-                raise TypeError("Key must be a string and cannot be null")
-
-            _params = params or _self.redis_params()
-            if _params is not None and (not isinstance(_params, dict) or _self.__ttl_key not in _params):
-                raise TypeError("Params must be a dictionary and must provide a TTL value")
-
-            if 'method_params' in _params:
-                _method_attrs = list(_params.get('method_params').values())
-
-            _redis_client = _self.redis_client()
-            redis_get_result = _redis_client.get(key)
-
-            if redis_get_result is not None:
-                print("Requested key " + key + " found in Redis server. Total key count: " + str(_redis_client.dbsize()))
-                return json.loads(redis_get_result)
-            else:
-                # cache miss
-                invoker_method_result = query_method(*_method_attrs[0:1]) if _method_attrs is not None else query_method()
-                _redis_client.set(key, json.dumps(invoker_method_result), int(_params.get(_self.__ttl_key)))
-                print(
-                    "Requested key " + key + " is missing in Redis server. Adding it to cache. Total key count: " + str(
-                        _redis_client.dbsize()))
-                return invoker_method_result
-
-        except redis.ConnectionError as e:
-            print("Redis connection error. Skipping cache layer and making network request" + str(e))
-            return query_method(*_method_attrs[0:2]) if _method_attrs is not None else query_method()
