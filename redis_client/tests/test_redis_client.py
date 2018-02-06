@@ -95,6 +95,20 @@ class TestRedisClient(unittest.TestCase):
         self.assertEqual(fetch_data_result, self.aws_lambda_callback_method(event, context),
                          "Expected value is different from retrieved value. aws_lambda_request_handler does not work")
 
+    #### Redis generic request handler ####
+    def generic_query_callback_method(self, payload):
+        pretend_response = "iQueried"
+        return pretend_response + str(payload)
+
+    def test_generic_request_handler(self):
+        payload = {'address': 'pretend address', 'region': 'XY'}
+        fetch_data_result = RedisClient.generic_request_handler(function_name='check_generic_handler', payload=payload,
+                                                                callback_method=self.generic_query_callback_method)
+        print(fetch_data_result)
+        self.assertEqual(fetch_data_result, self.generic_query_callback_method(payload),
+                         "Expected value is different from retrieved value. generic_request_handler does not work")
+
     class AwsContext:
         def __init__(self):
             self.invoked_function_arn = "FooBarBaz::baz:bar:foo"
+
