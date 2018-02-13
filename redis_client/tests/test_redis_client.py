@@ -17,15 +17,13 @@ class TestRedisClient(unittest.TestCase):
         self.fetch_data_value = "cache missed value"
         self.short_data_key = "short_ttl_key"
         self.short_data_value = "short_ttl_value"
-        self.test_redis_connection()
-        self.test_redis_set_value()
-        self.test_redis_get_value()
-        self.test_fetch_data_with_custom_ttl()
-        self.test_fetch_data_without_params()
-        self.test_fetch_data_with_default_params()
+        self.bad_request_data_key = "lookup_bad"
+        self.bad_request_response = {"response_code": "300", "text": "invalid"}
+        self.no_response_key = "no_response"
 
     def tearDown(self):
-        RedisClient().redis_client().delete(self.sampe_key, self.fetch_data_key, self.short_data_key)
+        RedisClient().redis_client().delete(self.sampe_key, self.fetch_data_key, self.short_data_key,
+                                            self.bad_request_data_key, self.no_response_key)
 
     #### Redis connection ####
     def test_redis_connection(self):
@@ -59,6 +57,12 @@ class TestRedisClient(unittest.TestCase):
     def short_data_call_back(self):
         return self.short_data_value
 
+    def return_bad_call_back(self):
+        return self.bad_request_response
+
+    def no_response_call_back(self):
+        pass
+
         ## Redis fetch_data call with 1 sec TTL ##
 
     def test_fetch_data_with_custom_ttl(self):
@@ -83,6 +87,20 @@ class TestRedisClient(unittest.TestCase):
         self.assertEqual(fetch_data_result, self.fetch_data_value,
                          "Expected value is different from retrieved value. fetch_data operation failed")
 
+    ## Bad Requests ##
+
+    def test_fetch_data_with_bad_request_code(self):
+        ttl = 5
+        fetch_data_result = RedisClient.fetch_data(self.bad_request_data_key, self.return_bad_call_back,
+                                                   RedisClient.redis_params(ttl))
+        self.assertNotEqual(RedisClient.redis_client().get(self.bad_request_data_key), self.bad_request_response,
+                            "Cache is not dismissing bad responses correctly, is caching them")
+
+    def test_fetch_data_with_no_response(self):
+        fetch_data_result = RedisClient.fetch_data(self.no_response_key, self.no_response_call_back)
+        self.assertEqual(RedisClient.redis_client().get(self.no_response_key), None,
+                         "RedisClient should have None record for this key, call_back returned None")
+
     #### Redis aws lambda request handler ####
     def aws_lambda_callback_method(self, event, context):
         return context.invoked_function_arn + str(event)
@@ -91,7 +109,6 @@ class TestRedisClient(unittest.TestCase):
         context = self.AwsContext()
         event = {'key1': 'value1', 'key2': 'value2'}
         fetch_data_result = RedisClient.aws_lambda_request_handler(event, context, self.aws_lambda_callback_method)
-        print(fetch_data_result)
         self.assertEqual(fetch_data_result, self.aws_lambda_callback_method(event, context),
                          "Expected value is different from retrieved value. aws_lambda_request_handler does not work")
 

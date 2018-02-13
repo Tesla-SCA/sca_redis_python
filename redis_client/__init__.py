@@ -99,6 +99,19 @@ class RedisClient:
     def redis_params(ttl=300):
         return {RedisClient.__ttl_key: ttl}
 
+    @staticmethod
+    def isInvalidResult(invoker_method_result):
+        if invoker_method_result is None:
+            return True
+        if (type(invoker_method_result) is dict) and ('response_code' in invoker_method_result):
+            if (int(invoker_method_result['response_code']) < 200) or (int(invoker_method_result['response_code']) > 299):
+                return True
+
+        if hasattr(invoker_method_result, 'response_code'):
+            if (int(invoker_method_result.response_code < 200)) or (int(invoker_method_result.response_code) > 299):
+                return True
+        return False
+
     # Fetch data method to fetch data from Redis server. If the corresponding key doesn't exist (cache miss) then
     # the cache is populated with the obtained result.
     # Note: Passing params (ttl as dict) is optional. It can be used to override the default 60 sec TTL.
@@ -124,12 +137,18 @@ class RedisClient:
                 return json.loads(redis_get_result)
             else:
                 # cache miss
-
                 invoker_method_result = query_method(*_method_attrs[0:2]) if _method_attrs is not None else query_method()
-                _redis_client.set(key, json.dumps(invoker_method_result), int(_params.get(_self.__ttl_key)))
-                print(
-                    "Requested key " + key + " is missing in Redis server. Adding it to cache. Total key count: " + str(
-                        _redis_client.dbsize()))
+
+                if _self.isInvalidResult(invoker_method_result):
+                    print("Request key " + key + " is missing in Redis server, but the query method returned an " +
+                                                 "invalid result. Redis will not cache this value")
+
+                else:
+                    _redis_client.set(key, json.dumps(invoker_method_result), int(_params.get(_self.__ttl_key)))
+                    print(
+                        "Requested key " + key + " is missing in Redis server. Adding it to cache. Total key count: " + str(
+                            _redis_client.dbsize()))
+
                 return invoker_method_result
 
         except redis.ConnectionError as e:
