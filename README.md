@@ -9,6 +9,11 @@
   1. Do docker-compose build
   1. docker-compose run test
 
+**To deploy latest changes as new version to pypi**
+- Change the version number in setup.py
+- Run command
+  1. python setup.py sdist upload -r pypi
+
 - How does it work?
   1. This repository has a Dockerfile and docker-compose file
   1. Dockerfile defines all necessary python packages needed to run the tests
