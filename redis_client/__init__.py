@@ -133,21 +133,21 @@ class RedisClient:
             redis_get_result = _redis_client.get(key)
 
             if redis_get_result is not None:
-                print("Requested key " + key + " found in Redis server. Total key count: " + str(_redis_client.dbsize()))
+                print(f"Requested key {key} found in Redis server (query method: {query_method.__name__}). "
+                      f"Total key count: {str(_redis_client.dbsize())}")
                 return json.loads(redis_get_result)
             else:
                 # cache miss
                 invoker_method_result = query_method(*_method_attrs[0:2]) if _method_attrs is not None else query_method()
 
                 if _self.isInvalidResult(invoker_method_result):
-                    print("Request key " + key + " is missing in Redis server, but the query method returned an " +
-                                                 "invalid result. Redis will not cache this value")
+                    print(f"Request key {key} is missing in Redis server (query method: {query_method.__name__}),"
+                          f" but the query method returned an invalid result. Redis will not cache this value")
 
                 else:
                     _redis_client.set(key, json.dumps(invoker_method_result), int(_params.get(_self.__ttl_key)))
-                    print(
-                        "Requested key " + key + " is missing in Redis server. Adding it to cache. Total key count: " + str(
-                            _redis_client.dbsize()))
+                    print(f"Requested key {key} is missing in Redis server (query method: {query_method.__name__}). "
+                          f"Adding it to cache. Total key count: {str(_redis_client.dbsize())}")
 
                 return invoker_method_result
 
