@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='sca_redis_python',
-    version='1.4',
+    version='1.6',
     description='Provides a redis client, more specific to work with AWS Lambda',
     author='Venkatesh Kara, Sona Allahverdiyeva',
     author_email='vkara@tesla.com',
